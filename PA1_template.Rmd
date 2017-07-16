@@ -1,25 +1,104 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Peer_assignment_1"
+author: "GabriellaJacoel"
+date: "16 luglio 2017"
+output: html_document
 ---
 
+## Daily Activity Analysis
 
-## Loading and preprocessing the data
+First of all, I import the data through function 'read.csv' and I convert the data.frame into data.table, for simplicity.
 
+```{r}
+library(data.table)
+setwd("C:/Users/GJacoel/Desktop/Coursera/Reproducible Research/Week2/")
+activity<-read.csv("activity.csv")
+activity<-as.data.table(activity)
+daily_activity<-activity[,list(daily_step=sum(steps,na.rm = T)),by=date]
 
+```
+Then, I aggregate data, summing up the number of steps for each day.
+```{r}
+daily_activity<-activity[,list(daily_step=sum(steps,na.rm = T)),by=date]
+```
 
-## What is mean total number of steps taken per day?
+In order to study daily steps distribution, we plot the histogram of steps.
 
+```{r pressure, echo=FALSE}
+hist(daily_activity$daily_step,col = "firebrick2",xlab ="Number of daily steps",
+     main ="Distribution of daily steps")
+```
 
+```{r computetime,echo=TRUE}
+daily_mean<-mean(daily_activity$daily_step)
+daily_median<-median(daily_activity$daily_step)
+```
 
-## What is the average daily activity pattern?
+Mean of distribution is `r daily_mean`.
+Median of distribution is `r daily_median`
 
+## Average daily activity pattern
+I compute the average number of steps for each 5 minute interval, evaluated over all the days at our disposal:
+```{r}
+av_daily_activity<-activity[,list(av_step=mean(steps,na.rm = T)),by=interval]
 
+```
+Then, we plot the computed points on a line-plot, that shows the average pattern of daily activity:
+```{r}
+plot(y=av_daily_activity$av_step,x = av_daily_activity$interval,type = "l",col="darkcyan",xlab = "5 MINUTE INTERVAL",ylab = "AVERAGE NUMBER OF STEPS",main = "Average number of steps during the day")
+```
 
-## Imputing missing values
+## Missing values analysis
+```{r}
+x<-sapply(activity,function(x) sum(is.na(x)))
+```
+Total number of missing values in the dataset is `r x[1]`. We replace all the missing values concentrated on "Steps" column, with the average number of steps calculated in the above analysis:
 
+```{r}
+no_na_activity<-merge(x=activity,y=av_daily_activity, by=c("interval"),all.x = T)
+no_na_activity$steps<-as.numeric(no_na_activity$steps)
+no_na_activity[is.na(no_na_activity$steps),]$steps<-no_na_activity[is.na(no_na_activity$steps),]$av_step
+```
+Now we recompute the daily analysis, using the new imputed values:
 
+```{r}
+no_na_daily_activity<-no_na_activity[,list(daily_step=sum(steps,na.rm = T)),by=date]
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+In order to study daily steps distribution, we plot the histogram of steps.
+
+```{r}
+hist (no_na_daily_activity$daily_step,col = "orange",xlab ="Number of daily steps", main ="Distribution of daily steps (no missing values)")
+```
+
+```{r,echo=TRUE}
+no_na_daily_mean<-mean(no_na_daily_activity$daily_step)
+no_na_daily_median<-median(no_na_daily_activity$daily_step)
+```
+
+Mean of distribution is `r no_na_daily_mean`.
+Median of distribution is `r no_na_daily_median`
+
+##Analysis weekend/weekdays activity
+We classify each date as "Weekend" or "Weekday" to perform the analysis:
+
+```{r,echo=TRUE}
+no_na_activity$date<-as.Date(no_na_activity$date)
+no_na_activity$weekdays<-weekdays(no_na_activity$date)
+no_na_activity$weekend<-"Weekday"
+no_na_activity[no_na_activity$weekdays=="sabato"|no_na_activity$weekdays=="domenica",]$weekend<-"Weekend"
+no_na_activity$weekdays<-NULL
+
+no_na_av_daily_activity<-no_na_activity[,list(av_step=mean(steps,na.rm = T)),by=c("interval","weekend")]
+weekend_activity<-no_na_av_daily_activity[weekend=="Weekend"]
+weekday_activity<-no_na_av_daily_activity[weekend=="Weekday"]
+```
+
+Now we plot the results:
+
+```{r}
+par(mfrow=c(1,2))
+plot(y=weekend_activity$av_step,x = weekend_activity$interval,type = "l",col="blue",xlab = "5 MINUTE INTERVAL",ylab = "AVERAGE NUMBER OF STEPS", main="Weekend activity")
+plot(y=weekday_activity$av_step,x = weekday_activity$interval,type = "l",col="coral",xlab = "5 MINUTE INTERVAL",ylab = "AVERAGE NUMBER OF STEPS", main="Weekday activity")
+```
+
